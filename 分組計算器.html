@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>月日銷售分組計算器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f1117;color:#e2e8f0;font-family:"Microsoft JhengHei","微軟正黑體",sans-serif;font-size:14px;min-height:100vh}
+a{color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:1.35rem;font-weight:700;margin-bottom:4px;color:#7dd3fc}
+.sub{color:#64748b;font-size:.8rem;margin-bottom:24px}
+
+/* upload */
+.drop{border:2px dashed #2e3350;border-radius:10px;padding:40px 20px;text-align:center;cursor:pointer;background:#1a1d27;transition:.2s;position:relative}
+.drop:hover,.drop.over{border-color:#4f8ef7;background:rgba(79,142,247,.07)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:2.6rem;margin-bottom:10px}
+.drop h2{font-size:.95rem;font-weight:500;margin-bottom:4px}
+.drop p{color:#64748b;font-size:.78rem}
+
+/* settings */
+.panel{background:#1a1d27;border:1px solid #2e3350;border-radius:10px;padding:18px;margin-top:18px;display:none}
+.panel.show{display:block}
+.sec-label{font-size:.7rem;font-weight:700;color:#64748b;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.fld label{display:block;font-size:.7rem;color:#94a3b8;margin-bottom:3px}
+.fld select,.fld input{width:100%;padding:6px 9px;background:#22263a;border:1px solid #2e3350;border-radius:6px;color:#e2e8f0;font-size:.83rem;outline:none;font-family:inherit}
+.fld select:focus,.fld input:focus{border-color:#4f8ef7}
+.thr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.thr label{color:#94a3b8;font-size:.82rem;white-space:nowrap}
+.thr .fld{flex:0 0 auto;width:160px}
+.btn-run{padding:9px 26px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border:none;border-radius:7px;color:#fff;font-size:.88rem;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-run:hover{opacity:.85}
+
+/* results */
+.results{margin-top:24px;display:none}
+.results.show{display:block}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.sc{background:#1a1d27;border:1px solid #2e3350;border-radius:9px;padding:14px}
+.sc .l{font-size:.67rem;color:#64748b;letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
+.sc .v{font-family:"Courier New",monospace;font-size:1.15rem;font-weight:700}
+.sc.bl .v{color:#7dd3fc}.sc.gr .v{color:#4ade80}.sc.or .v{color:#fb923c}.sc.pu .v{color:#c084fc}
+
+.export-bar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px}
+.btn-e{padding:6px 16px;background:#22263a;border:1px solid #2e3350;border-radius:5px;color:#e2e8f0;font-size:.78rem;cursor:pointer;font-family:inherit}
+.btn-e:hover{border-color:#4f8ef7;color:#7dd3fc}
+
+.dblock{margin-bottom:18px;background:#1a1d27;border:1px solid #2e3350;border-radius:9px;overflow:hidden}
+.dbh{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:#22263a;border-bottom:1px solid #2e3350;cursor:pointer;user-select:none}
+.dbh .dl{font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:7px}
+.badge{background:rgba(79,142,247,.15);color:#7dd3fc;font-size:.65rem;font-family:"Courier New",monospace;padding:2px 7px;border-radius:99px}
+.dbh .dt{font-family:"Courier New",monospace;font-size:.78rem;color:#64748b;display:flex;gap:14px}
+.ci{transition:transform .18s}
+.collapsed .ci{transform:rotate(-90deg)}
+.collapsed .dbb{display:none}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{padding:7px 12px;text-align:left;font-size:.65rem;font-weight:600;color:#64748b;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #2e3350;background:rgba(0,0,0,.2)}
+th.r{text-align:right}
+td{padding:6px 12px;border-bottom:1px solid rgba(46,51,80,.45);font-family:"Courier New",monospace;color:#b0bec5}
+td.lbl{font-family:"Microsoft JhengHei","微軟正黑體",sans-serif;font-size:.78rem}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(79,142,247,.04)}
+td.r{text-align:right}
+.gr-row td{background:rgba(124,58,237,.07)}
+.gr-row td.gn{color:#4ade80;font-weight:700}
+.gr-row td.gl{font-family:"Microsoft JhengHei","微軟正黑體",sans-serif;font-size:.73rem;color:#64748b}
+.sub-row td:first-child{padding-left:26px}
+.sub-row td{opacity:.82}
+.vfy-row td{font-size:.75rem}
+.err-box{background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:7px;padding:10px 14px;color:#ef4444;margin-bottom:14px;font-size:.83rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📊 月日銷售分組計算器</h1>
+  <p class="sub">上傳 Excel (.xlsx) 或 CSV → 依月日合併 → 超過上限自動拆組 ｜ 完全離線，資料不離開本機</p>
+
+  <div class="drop" id="drop">
+    <input type="file" id="fi" accept=".xlsx,.xls,.csv">
+    <div class="drop-icon">📂</div>
+    <h2 id="dropText">點擊或拖曳上傳檔案</h2>
+    <p>支援 .xlsx / .csv　—　完全離線，無需網路</p>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="sec-label">欄位對應</div>
+    <div class="grid" id="colGrid"></div>
+    <div class="thr">
+      <label>每組上限（累計銷售額）：</label>
+      <div class="fld"><input type="number" id="thr" value="1000000" min="1"></div>
+      <span style="color:#64748b;font-size:.78rem">超過此金額開新組</span>
+    </div>
+    <button class="btn-run" onclick="runCalc()">開始計算</button>
+  </div>
+
+  <div class="results" id="results">
+    <div class="stats" id="stats"></div>
+    <div class="export-bar">
+      <button class="btn-e" onclick="exportCSV()">匯出 CSV</button>
+      <button class="btn-e" onclick="window.print()">列　印</button>
+    </div>
+    <div id="out"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// Minimal XLSX parser (pure JS, no dependencies)
+// Supports xlsx (Office Open XML) and CSV
+// ═══════════════════════════════════════════════════════
+
+// ── ZIP reader ──────────────────────────────────────────
+function parseZip(buf) {
+  const u8 = new Uint8Array(buf);
+  const files = {};
+  let i = 0;
+  while (i < u8.length - 4) {
+    if (u8[i]===0x50&&u8[i+1]===0x4B&&u8[i+2]===0x03&&u8[i+3]===0x04) {
+      const comp   = u8[i+8]  | u8[i+9]<<8;
+      const csize  = u8[i+18] | u8[i+19]<<8 | u8[i+20]<<16 | u8[i+21]<<24;
+      const usize  = u8[i+22] | u8[i+23]<<8 | u8[i+24]<<16 | u8[i+25]<<24;
+      const fnLen  = u8[i+26] | u8[i+27]<<8;
+      const exLen  = u8[i+28] | u8[i+29]<<8;
+      const fnBytes= u8.slice(i+30, i+30+fnLen);
+      const fname  = new TextDecoder().decode(fnBytes);
+      const dataStart = i+30+fnLen+exLen;
+      const compressed= u8.slice(dataStart, dataStart+csize);
+      let content;
+      if (comp===0) {
+        content = compressed;
+      } else if (comp===8) {
+        try { content = pako_inflate(compressed); } catch(e) { content = compressed; }
+      } else { content = compressed; }
+      files[fname] = content;
+      i = dataStart + csize;
+    } else { i++; }
+  }
+  return files;
+}
+
+// ── Pako inflate (deflate decompressor, needed for xlsx) ─
+// Minimal inflate implementation
+function pako_inflate(data) {
+  // Use DecompressionStream if available (modern browsers)
+  // We'll use a synchronous approach via a trick
+  return inflateRaw(data);
+}
+
+function inflateRaw(data) {
+  // Use native DecompressionStream (supported in Chrome 80+, Firefox 113+, Safari 16.4+)
+  // Since we're in a modern browser for offline use, this should work
+  // But DecompressionStream is async... we'll handle this differently
+  // Store compressed data and decompress via sync trick using blob
+  throw new Error('async needed');
+}
+
+// Actually, let's use a different approach: async parsing
+async function inflateRawAsync(data) {
+  const ds = new DecompressionStream('deflate-raw');
+  const writer = ds.writable.getWriter();
+  const reader = ds.readable.getReader();
+  writer.write(data);
+  writer.close();
+  const chunks = [];
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const total = chunks.reduce((a,b)=>a+b.length,0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off+=c.length; }
+  return out;
+}
+
+async function parseZipAsync(buf) {
+  const u8 = new Uint8Array(buf);
+  const files = {};
+  let i = 0;
+  while (i < u8.length - 4) {
+    if (u8[i]===0x50&&u8[i+1]===0x4B&&u8[i+2]===0x03&&u8[i+3]===0x04) {
+      const comp   = u8[i+8]  | u8[i+9]<<8;
+      const csize  = u8[i+18] | u8[i+19]<<8 | u8[i+20]<<16 | u8[i+21]<<24;
+      const fnLen  = u8[i+26] | u8[i+27]<<8;
+      const exLen  = u8[i+28] | u8[i+29]<<8;
+      const fname  = new TextDecoder().decode(u8.slice(i+30, i+30+fnLen));
+      const dataStart = i+30+fnLen+exLen;
+      const compressed = u8.slice(dataStart, dataStart+csize);
+      if (comp===0) {
+        files[fname] = compressed;
+      } else if (comp===8) {
+        files[fname] = await inflateRawAsync(compressed);
+      }
+      i = dataStart + csize;
+    } else { i++; }
+  }
+  return files;
+}
+
+// ── XML parser (minimal) ────────────────────────────────
+function parseXML(u8) {
+  return new TextDecoder('utf-8').decode(u8);
+}
+
+function xmlAttr(tag, attr) {
+  const m = tag.match(new RegExp(attr+'=["\']([^"\']*)["\']'));
+  return m ? m[1] : '';
+}
+
+function getAllTags(xml, tag) {
+  const re = new RegExp('<'+tag+'([^>]*)(?:/>|>([\\s\\S]*?)</'+tag+'>)','g');
+  const res = [];
+  let m;
+  while ((m = re.exec(xml)) !== null) res.push({ attrs: m[1]||'', inner: m[2]||'' });
+  return res;
+}
+
+function getTag(xml, tag) {
+  const m = xml.match(new RegExp('<'+tag+'[^>]*>([\\s\\S]*?)</'+tag+'>'));
+  return m ? m[1] : '';
+}
+
+// ── Excel date serial → string ──────────────────────────
+function excelDateToStr(serial) {
+  if (!serial || isNaN(serial)) return String(serial);
+  const s = Math.floor(Number(serial));
+  if (s < 1) return String(serial);
+  // Excel epoch: Jan 1 1900 = 1 (with leap year bug)
+  const d = new Date((s - 1) * 86400000 - (s > 59 ? 0 : 0));
+  // Correct calculation
+  const epoch = new Date(1899, 11, 30);
+  const date = new Date(epoch.getTime() + s * 86400000);
+  const m = date.getMonth()+1;
+  const day = date.getDate();
+  return m+'/'+day+'/'+date.getFullYear();
+}
+
+// ── Parse xlsx ──────────────────────────────────────────
+async function parseXlsx(buf) {
+  const files = await parseZipAsync(buf);
+
+  // Shared strings
+  let sharedStrings = [];
+  const ssKey = Object.keys(files).find(k => k.includes('sharedStrings'));
+  if (ssKey) {
+    const ssXml = parseXML(files[ssKey]);
+    const siTags = getAllTags(ssXml, 'si');
+    sharedStrings = siTags.map(si => {
+      // Get all <t> text, handle <r><t> runs
+      const tMatches = [...si.inner.matchAll(/<t(?:[^>]*)>([^<]*)<\/t>/g)];
+      return tMatches.map(m => m[1]).join('');
+    });
+  }
+
+  // Styles (to detect date formats)
+  const dateFormats = new Set([14,15,16,17,18,19,20,21,22,45,46,47,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185]);
+  const cellDateFormats = new Set();
+  const stylesKey = Object.keys(files).find(k => k.includes('styles'));
+  if (stylesKey) {
+    const stXml = parseXML(files[stylesKey]);
+    const numFmts = getAllTags(stXml, 'numFmt');
+    const customDateIds = new Set();
+    numFmts.forEach(nf => {
+      const id = parseInt(xmlAttr(nf.attrs,'numFmtId')||'0');
+      const code = xmlAttr(nf.attrs,'formatCode').toLowerCase();
+      if (code.includes('y')||code.includes('m')&&code.includes('d')) customDateIds.add(id);
+    });
+    const xfsXml = getTag(stXml, 'cellXfs');
+    const xfs = getAllTags(xfsXml, 'xf');
+    xfs.forEach((xf, idx) => {
+      const fid = parseInt(xmlAttr(xf.attrs,'numFmtId')||'0');
+      if (dateFormats.has(fid) || customDateIds.has(fid)) cellDateFormats.add(idx);
+    });
+  }
+
+  // First sheet
+  const wsKey = Object.keys(files).find(k => k.match(/xl\/worksheets\/sheet1/));
+  if (!wsKey) throw new Error('找不到工作表');
+  const wsXml = parseXML(files[wsKey]);
+
+  // Parse rows
+  const rowTags = getAllTags(wsXml, 'row');
+  const grid = [];
+  rowTags.forEach(row => {
+    const cells = getAllTags(row.inner, 'c');
+    const rowArr = {};
+    cells.forEach(cell => {
+      const ref = xmlAttr(cell.attrs, 'r');
+      const t   = xmlAttr(cell.attrs, 't');
+      const s   = parseInt(xmlAttr(cell.attrs, 's')||'-1');
+      const v   = getTag(cell.inner, 'v');
+      const col = ref.match(/^([A-Z]+)/)?.[1] || 'A';
+      const colIdx = col.split('').reduce((a,c)=>a*26+(c.charCodeAt(0)-64),0)-1;
+      let val;
+      if (t==='s') val = sharedStrings[parseInt(v)]||'';
+      else if (t==='str'||t==='inlineStr') val = getTag(cell.inner,'t')||v;
+      else if (t==='b') val = v==='1'?'TRUE':'FALSE';
+      else if (v===''||v==null) val = '';
+      else {
+        const num = parseFloat(v);
+        if (cellDateFormats.has(s) && !isNaN(num)) {
+          val = excelDateToStr(num);
+        } else { val = isNaN(num) ? v : num; }
+      }
+      rowArr[colIdx] = val;
+    });
+    if (Object.keys(rowArr).length > 0) {
+      const maxCol = Math.max(...Object.keys(rowArr).map(Number));
+      const arr = [];
+      for (let i=0;i<=maxCol;i++) arr.push(rowArr[i]??'');
+      grid.push(arr);
+    }
+  });
+  return grid;
+}
+
+// ── Parse CSV ────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  return lines.filter(l=>l.trim()).map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i=0;i<line.length;i++) {
+      const c = line[i];
+      if (c==='"') { inQ=!inQ; continue; }
+      if (c===','&&!inQ) { cols.push(cur.trim()); cur=''; continue; }
+      cur+=c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// App logic
+// ═══════════════════════════════════════════════════════
+let headers = [], rows = [], lastResult = null;
+
+const drop = document.getElementById('drop');
+const fi   = document.getElementById('fi');
+
+drop.addEventListener('dragover', e=>{e.preventDefault();drop.classList.add('over')});
+drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
+fi.addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0])});
+
+async function loadFile(file) {
+  document.getElementById('dropText').textContent = '⏳ 解析中…';
+  try {
+    let grid;
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      const text = await file.text();
+      grid = parseCSV(text);
+    } else {
+      const buf = await file.arrayBuffer();
+      grid = await parseXlsx(buf);
+    }
+    if (!grid || grid.length < 2) throw new Error('資料不足（需至少 2 列）');
+    headers = (grid[0]||[]).map(h=>String(h??'').trim());
+    rows    = grid.slice(1).filter(r=>r.some(c=>c!==''&&c!=null));
+    buildColMap();
+    document.getElementById('panel').classList.add('show');
+    document.getElementById('dropText').textContent = `✅ 已載入：${file.name}（${rows.length} 列）`;
+  } catch(err) {
+    document.getElementById('dropText').textContent = '❌ 解析失敗：' + err.message;
+    console.error(err);
+  }
+}
+
+const FIELDS = [
+  {id:'cM', label:'月份欄',   hint:['月','month']},
+  {id:'cD', label:'日期欄',   hint:['日','day','date']},
+  {id:'cS', label:'銷售額欄', hint:['銷售','sales','金額','amount']},
+  {id:'cT', label:'稅額欄',   hint:['稅','tax']},
+  {id:'cL', label:'說明欄（選填）', hint:['說明','備註','desc','name','品項','摘要']},
+];
+
+function buildColMap() {
+  const g = document.getElementById('colGrid');
+  g.innerHTML = FIELDS.map(f => {
+    const autoIdx = headers.findIndex(h => f.hint.some(k => h.toLowerCase().includes(k)));
+    return `<div class="fld">
+      <label>${f.label}</label>
+      <select id="${f.id}">
+        <option value="">— 未使用 —</option>
+        ${headers.map((h,i)=>`<option value="${i}"${i===autoIdx?' selected':''}>${h||(i+'欄')}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function getIdx(id){ const v=document.getElementById(id)?.value; return v===''?-1:parseInt(v); }
+function getCell(row,id){ const i=getIdx(id); return i<0?'':row[i]??''; }
+function toNum(v){ if(v==null||v==='')return 0; const n=parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; }
+function fmt(n){ return Number(n).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2}); }
+
+function runCalc() {
+  const threshold = toNum(document.getElementById('thr').value)||1000000;
+  const data = rows.map((r,i)=>({
+    row: i+2,
+    month: String(getCell(r,'cM')).trim(),
+    day:   String(getCell(r,'cD')).trim(),
+    sales: toNum(getCell(r,'cS')),
+    tax:   toNum(getCell(r,'cT')),
+    desc:  String(getCell(r,'cL')).trim(),
+  })).filter(r=>r.month!==''||r.sales!==0);
+
+  if (!data.length) { alert('沒有有效資料，請確認欄位對應'); return; }
+
+  // Group by month+day (preserve order)
+  const map = new Map();
+  data.forEach(r => {
+    const key = `${r.month}月${r.day}日`;
+    if (!map.has(key)) map.set(key,[]);
+    map.get(key).push(r);
+  });
+
+  let gNum = 1, grandS=0, grandT=0, totalG=0;
+  const dateGroups = [];
+
+  map.forEach((items, dateKey) => {
+    const subGroups = [];
+    let cur=[], curS=0;
+    items.forEach(item => {
+      if (cur.length>0 && curS+item.sales>threshold) {
+        subGroups.push({items:[...cur], sumS:curS, sumT:cur.reduce((a,b)=>a+b.tax,0)});
+        cur=[]; curS=0;
+      }
+      cur.push(item); curS+=item.sales;
+    });
+    if (cur.length>0) subGroups.push({items:cur, sumS:curS, sumT:cur.reduce((a,b)=>a+b.tax,0)});
+
+    const totS = items.reduce((a,b)=>a+b.sales,0);
+    const totT = items.reduce((a,b)=>a+b.tax,0);
+    grandS+=totS; grandT+=totT; totalG+=subGroups.length;
+
+    const numbered = subGroups.map(g=>({...g, gNum: gNum++}));
+    dateGroups.push({dateKey, items, subGroups:numbered,
+      totS, totT,
+      chkS: numbered.reduce((a,b)=>a+b.sumS,0),
+      chkT: numbered.reduce((a,b)=>a+b.sumT,0)});
+  });
+
+  lastResult = {dateGroups, grandS, grandT, totalG, totalD: dateGroups.length};
+  renderResults(lastResult);
+}
+
+function renderResults({dateGroups, grandS, grandT, totalG, totalD}) {
+  document.getElementById('stats').innerHTML = `
+    <div class="sc bl"><div class="l">總日期數</div><div class="v">${totalD}</div></div>
+    <div class="sc or"><div class="l">總組數</div><div class="v">${totalG}</div></div>
+    <div class="sc gr"><div class="l">全部銷售額合計</div><div class="v">${fmt(grandS)}</div></div>
+    <div class="sc pu"><div class="l">全部稅額合計</div><div class="v">${fmt(grandT)}</div></div>
+  `;
+
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+
+  dateGroups.forEach(dg => {
+    const ok = Math.abs(dg.totS - dg.chkS) < 0.01;
+    const vc = ok ? '#4ade80' : '#ef4444';
+    const vt = ok ? '✓ 加總吻合' : '⚠ 加總不符！';
+
+    let rows = '';
+    dg.subGroups.forEach(g => {
+      rows += `<tr class="gr-row">
+        <td class="gl">第 ${g.gNum} 組（${g.items.length} 筆）</td>
+        <td></td><td></td>
+        <td class="r gn">${fmt(g.sumS)}</td>
+        <td class="r gn">${fmt(g.sumT)}</td>
+        <td class="r gn">${fmt(g.sumS+g.sumT)}</td>
+      </tr>`;
+      g.items.forEach(item => {
+        rows += `<tr class="sub-row">
+          <td class="lbl">${item.desc||`第${item.row}列`}</td>
+          <td class="lbl" style="color:#64748b;font-size:.73rem">${dg.dateKey}</td>
+          <td class="r" style="color:#94a3b8;font-size:.73rem">第${g.gNum}組</td>
+          <td class="r">${fmt(item.sales)}</td>
+          <td class="r">${fmt(item.tax)}</td>
+          <td class="r">${fmt(item.sales+item.tax)}</td>
+        </tr>`;
+      });
+    });
+
+    const div = document.createElement('div');
+    div.className = 'dblock';
+    div.innerHTML = `
+      <div class="dbh" onclick="this.closest('.dblock').classList.toggle('collapsed')">
+        <div class="dl">${dg.dateKey} <span class="badge">${dg.subGroups.length} 組</span></div>
+        <div class="dt">
+          <span>銷售 <b style="color:#e2e8f0">${fmt(dg.totS)}</b></span>
+          <span>稅額 <b style="color:#e2e8f0">${fmt(dg.totT)}</b></span>
+          <span class="ci">▼</span>
+        </div>
+      </div>
+      <div class="dbb">
+        <table>
+          <thead><tr>
+            <th>說明</th><th>日期</th><th>組別</th>
+            <th class="r">銷售額</th><th class="r">稅額</th><th class="r">小計</th>
+          </tr></thead>
+          <tbody>
+            ${rows}
+            <tr class="vfy-row">
+              <td colspan="3" class="lbl" style="color:${vc}">${vt}</td>
+              <td class="r" style="color:${vc}">${fmt(dg.chkS)}</td>
+              <td class="r" style="color:${vc}">${fmt(dg.chkT)}</td>
+              <td class="r" style="color:${vc}">${fmt(dg.chkS+dg.chkT)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    out.appendChild(div);
+  });
+
+  document.getElementById('results').classList.add('show');
+}
+
+function exportCSV() {
+  if (!lastResult) return;
+  const rows = [['日期','組號','說明','銷售額','稅額','合計','分組銷售額','分組稅額']];
+  lastResult.dateGroups.forEach(dg => {
+    dg.subGroups.forEach(g => {
+      g.items.forEach((item,i) => {
+        rows.push([dg.dateKey,`第${g.gNum}組`,item.desc||`第${item.row}列`,
+          item.sales, item.tax, item.sales+item.tax,
+          i===0?g.sumS:'', i===0?g.sumT:'']);
+      });
+    });
+  });
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download = '分組結果.csv'; a.click();
+}
+</script>
+</body>
+</html>
