@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>折讓比率計算器</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --ink: #1a1208;
+    --paper: #f5f0e8;
+    --cream: #ede7d4;
+    --accent: #8b4513;
+    --accent-light: #c4783a;
+    --line: #c8b99a;
+    --muted: #8a7a62;
+    --success: #3a6b35;
+    --danger: #8b1a1a;
+    --shadow: rgba(26,18,8,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Serif TC', serif;
+    min-height: 100vh;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 27px, var(--line) 27px, var(--line) 28px);
+    background-size: 100% 28px;
+  }
+
+  .page-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 3px double var(--accent);
+  }
+
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 1px 1px 0 var(--cream);
+  }
+
+  header p {
+    color: var(--muted);
+    margin-top: 6px;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── 票據區 ── */
+  .bills-list { display: flex; flex-direction: column; gap: 28px; }
+
+  .bill-card {
+    background: #fffdf7;
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--accent);
+    box-shadow: 4px 4px 0 var(--shadow);
+    padding: 20px 22px;
+    position: relative;
+    transition: box-shadow .2s;
+  }
+  .bill-card:hover { box-shadow: 6px 6px 0 var(--shadow); }
+
+  .bill-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.08em; font-weight: 600; }
+
+  input[type="text"], input[type="number"] {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--line);
+    outline: none;
+    font-family: inherit;
+    color: var(--ink);
+    padding: 4px 2px;
+    font-size: 0.95rem;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-bottom-color: var(--accent);
+  }
+  input[type="number"] {
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+  }
+
+  .bill-header .field-group:first-child { min-width: 200px; }
+  .bill-header .field-group:nth-child(2) { min-width: 130px; }
+
+  /* ── 明細 ── */
+  .items-section { margin-top: 4px; }
+
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  .items-table thead th {
+    text-align: left;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    padding: 4px 8px 6px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 600;
+  }
+  .items-table thead th.num { text-align: right; }
+  .items-table tbody td {
+    padding: 4px 8px;
+    border-bottom: 1px dashed var(--line);
+    vertical-align: middle;
+  }
+  .items-table tbody tr:last-child td { border-bottom: none; }
+
+  .items-table .col-name { width: 40%; }
+  .items-table .col-amt  { width: 20%; text-align: right; }
+  .items-table .col-out  { width: 25%; text-align: right; }
+  .items-table .col-del  { width: 8%; text-align: center; }
+
+  .items-table input[type="text"] { width: 100%; }
+  .items-table input[type="number"] { width: 100%; }
+
+  .out-val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--success);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .del-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: color .15s, background .15s;
+  }
+  .del-btn:hover { color: var(--danger); background: #fee; }
+
+  .items-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .totals-row {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--muted);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .totals-row span { display: inline-flex; gap: 6px; }
+  .totals-row strong { color: var(--ink); font-size: 0.9rem; }
+  .totals-row .warn { color: var(--danger) !important; font-weight: 700; }
+
+  /* ── 按鈕 ── */
+  .btn {
+    border: 1.5px solid currentColor;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Noto Serif TC', serif;
+    letter-spacing: 0.05em;
+    padding: 5px 14px;
+    font-size: 0.8rem;
+    border-radius: 2px;
+    transition: all .15s;
+  }
+  .btn-add-item { color: var(--accent); }
+  .btn-add-item:hover { background: var(--accent); color: #fff; }
+  .btn-copy { color: var(--muted); }
+  .btn-copy:hover { background: var(--muted); color: #fff; }
+  .btn-del-bill { color: var(--danger); }
+  .btn-del-bill:hover { background: var(--danger); color: #fff; }
+
+  .bill-actions { display: flex; gap: 8px; }
+
+  /* ── 新增票據 ── */
+  .add-bill-wrap {
+    margin-top: 28px;
+    text-align: center;
+  }
+  .btn-add-bill {
+    font-size: 0.9rem;
+    padding: 9px 28px;
+    border: 2px dashed var(--accent);
+    color: var(--accent);
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Noto Serif TC', serif;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    transition: all .18s;
+  }
+  .btn-add-bill:hover { background: var(--accent); color: #fff; }
+
+  /* ── 全域加總 ── */
+  .global-summary {
+    margin-top: 36px;
+    padding: 18px 22px;
+    border: 2px double var(--accent);
+    background: #fffdf7;
+    box-shadow: 4px 4px 0 var(--shadow);
+  }
+  .global-summary h2 {
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .summary-item label {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 3px;
+    font-weight: 600;
+  }
+  .summary-item .big-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .summary-item.accent .big-num { color: var(--accent); }
+  .summary-item.green .big-num { color: var(--success); }
+
+  /* ── 工具列 ── */
+  .toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .btn-print {
+    font-size: 0.82rem; padding: 7px 18px;
+    border: 1.5px solid var(--ink); color: var(--ink);
+    background: transparent; cursor: pointer;
+    font-family: 'Noto Serif TC', serif;
+    border-radius: 2px; letter-spacing: 0.05em;
+    transition: all .15s;
+  }
+  .btn-print:hover { background: var(--ink); color: var(--paper); }
+
+  @media print {
+    body { background: #fff; background-image: none; }
+    .toolbar, .btn-add-bill, .btn-add-item, .del-btn, .btn-copy, .btn-del-bill, .add-bill-wrap { display: none !important; }
+    .bill-card { box-shadow: none; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header>
+    <h1>折讓比率計算器</h1>
+    <p>依各明細金額比例自動分攤折讓金額</p>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn-print" onclick="window.print()">列　印</button>
+  </div>
+
+  <div class="bills-list" id="billsList"></div>
+
+  <div class="add-bill-wrap">
+    <button class="btn-add-bill" onclick="addBill()">＋ 新增票據</button>
+  </div>
+
+  <div class="global-summary" id="globalSummary">
+    <h2>全部票據加總</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <label>明細金額合計</label>
+        <div class="big-num" id="gTotal">—</div>
+      </div>
+      <div class="summary-item accent">
+        <label>折讓金額合計</label>
+        <div class="big-num" id="gDiscount">—</div>
+      </div>
+      <div class="summary-item green">
+        <label>分攤後合計</label>
+        <div class="big-num" id="gNet">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let billCount = 0;
+
+function fmt(n) {
+  if (isNaN(n) || n === '') return '—';
+  return Number(n).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function addBill(titleVal = '', discountVal = '') {
+  billCount++;
+  const id = billCount;
+  const container = document.getElementById('billsList');
+
+  const card = document.createElement('div');
+  card.className = 'bill-card';
+  card.id = `bill-${id}`;
+  card.innerHTML = `
+    <div class="bill-header">
+      <div class="field-group">
+        <label>票據標題 <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="bill-title" placeholder="請輸入標題…" value="${titleVal}" oninput="updateAll()">
+      </div>
+      <div class="field-group">
+        <label>折讓金額</label>
+        <input type="number" class="bill-discount" placeholder="0" value="${discountVal}" oninput="updateBill(${id})">
+      </div>
+      <div class="bill-actions">
+        <button class="btn btn-copy" title="複製此票據" onclick="copyBill(${id})">複製</button>
+        <button class="btn btn-del-bill" title="刪除此票據" onclick="deleteBill(${id})">刪除</button>
+      </div>
+    </div>
+    <div class="items-section">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="col-name">品項名稱</th>
+            <th class="col-amt num">金額</th>
+            <th class="col-out num">分攤後金額</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="items-${id}"></tbody>
+      </table>
+      <div class="items-footer">
+        <button class="btn btn-add-item" onclick="addItem(${id})">＋ 新增品項</button>
+        <div class="totals-row" id="totals-${id}"></div>
+      </div>
+    </div>
+  `;
+  container.appendChild(card);
+  addItem(id);
+  updateAll();
+}
+
+function copyBill(id) {
+  const card = document.getElementById(`bill-${id}`);
+  const title = card.querySelector('.bill-title').value;
+  const discount = card.querySelector('.bill-discount').value;
+  addBill(title, discount);
+  // copy items
+  const rows = document.querySelectorAll(`#items-${id} tr`);
+  const newId = billCount;
+  // clear the auto-added empty row
+  document.querySelector(`#items-${newId}`).innerHTML = '';
+  rows.forEach(row => {
+    const nameInput = row.querySelector('.item-name');
+    const amtInput  = row.querySelector('.item-amt');
+    if (nameInput && amtInput) addItem(newId, nameInput.value, amtInput.value);
+  });
+  updateAll();
+}
+
+function deleteBill(id) {
+  const card = document.getElementById(`bill-${id}`);
+  if (card) { card.remove(); updateAll(); }
+}
+
+let itemCount = 0;
+function addItem(billId, nameVal = '', amtVal = '') {
+  itemCount++;
+  const ic = itemCount;
+  const tbody = document.getElementById(`items-${billId}`);
+  const tr = document.createElement('tr');
+  tr.id = `item-${ic}`;
+  tr.innerHTML = `
+    <td class="col-name"><input type="text" class="item-name" placeholder="品項名稱" value="${nameVal}" oninput="updateBill(${billId})"></td>
+    <td class="col-amt"><input type="number" class="item-amt" placeholder="0" value="${amtVal}" oninput="updateBill(${billId})"></td>
+    <td class="col-out"><span class="out-val" id="out-${ic}">—</span></td>
+    <td class="col-del"><button class="del-btn" title="刪除" onclick="deleteItem(${ic},${billId})">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  updateBill(billId);
+}
+
+function deleteItem(ic, billId) {
+  const row = document.getElementById(`item-${ic}`);
+  if (row) { row.remove(); updateBill(billId); }
+}
+
+function updateBill(billId) {
+  const card = document.getElementById(`bill-${billId}`);
+  if (!card) return;
+  const discount = parseFloat(card.querySelector('.bill-discount').value) || 0;
+  const rows = card.querySelectorAll('.items-table tbody tr');
+  let totalAmt = 0;
+  rows.forEach(r => {
+    const v = parseFloat(r.querySelector('.item-amt')?.value) || 0;
+    totalAmt += v;
+  });
+
+  let totalOut = 0;
+  const outSpans = [];
+  rows.forEach((r, i) => {
+    const amt = parseFloat(r.querySelector('.item-amt')?.value) || 0;
+    const id = r.id.replace('item-', '');
+    const span = document.getElementById(`out-${id}`);
+    if (!span) return;
+    if (totalAmt === 0) { span.textContent = '—'; return; }
+    let out;
+    if (i < rows.length - 1) {
+      out = Math.round((discount * (amt / totalAmt)) * 100) / 100;
+      totalOut += out;
+    } else {
+      // last row gets the remainder to ensure sum is exact
+      out = Math.round((discount - totalOut) * 100) / 100;
+    }
+    span.textContent = fmt(out);
+    outSpans.push(out);
+  });
+
+  // totals row
+  const tRow = document.getElementById(`totals-${billId}`);
+  let outSum = outSpans.reduce((a, b) => a + b, 0);
+  // recalculate outSum from DOM for safety
+  let domOutSum = 0;
+  rows.forEach(r => {
+    const id = r.id.replace('item-', '');
+    const span = document.getElementById(`out-${id}`);
+    if (span && span.textContent !== '—') domOutSum += parseFloat(span.textContent.replace(/,/g, '')) || 0;
+  });
+
+  const diffClass = (Math.abs(domOutSum - discount) > 0.01 && discount !== 0) ? 'warn' : '';
+  tRow.innerHTML = `
+    <span>明細合計 <strong>${fmt(totalAmt)}</strong></span>
+    <span>折讓 <strong>${fmt(discount)}</strong></span>
+    <span>分攤後合計 <strong class="${diffClass}">${fmt(domOutSum)}</strong></span>
+  `;
+  updateGlobal();
+}
+
+function updateAll() {
+  document.querySelectorAll('.bill-card').forEach(card => {
+    const id = parseInt(card.id.replace('bill-', ''));
+    updateBill(id);
+  });
+}
+
+function updateGlobal() {
+  let gTotal = 0, gDiscount = 0, gNet = 0;
+  document.querySelectorAll('.bill-card').forEach(card => {
+    const billId = parseInt(card.id.replace('bill-', ''));
+    const discount = parseFloat(card.querySelector('.bill-discount')?.value) || 0;
+    gDiscount += discount;
+    card.querySelectorAll('.item-amt').forEach(inp => {
+      gTotal += parseFloat(inp.value) || 0;
+    });
+    card.querySelectorAll('.out-val').forEach(span => {
+      if (span.textContent !== '—') gNet += parseFloat(span.textContent.replace(/,/g, '')) || 0;
+    });
+  });
+  document.getElementById('gTotal').textContent    = fmt(gTotal);
+  document.getElementById('gDiscount').textContent = fmt(gDiscount);
+  document.getElementById('gNet').textContent      = fmt(gNet);
+}
+
+// Start with one bill
+addBill();
+</script>
+</body>
+</html>
